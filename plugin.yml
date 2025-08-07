@@ -1,0 +1,35 @@
+name: ClearDrop
+version: 1.0.0
+main: com.cleardrop.ClearDropPlugin
+api-version: 1.21
+author: blockeric10145
+description: 掉落物清理插件 - 自動清理掉落物並提供GUI商店功能
+website: https://github.com/JerryEEA/cleardrop
+depend: []
+soft-depend: [Vault]
+
+commands:
+  cleardrop:
+    description: 掉落物清理插件主指令
+    usage: /cleardrop <help|clear|timer|shop|reload>
+    permission: cleardrop.admin
+    aliases: [cd, drop]
+  dropshop:
+    description: 打開掉落物商店
+    usage: /dropshop
+    permission: cleardrop.shop
+    aliases: [ds, shop]
+
+permissions:
+  cleardrop.admin:
+    description: 管理員權限
+    default: op
+  cleardrop.shop:
+    description: 使用商店權限
+    default: true
+  cleardrop.clear:
+    description: 清理掉落物權限
+    default: op
+  cleardrop.reload:
+    description: 重載插件權限
+    default: op
