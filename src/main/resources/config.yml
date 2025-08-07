@@ -1,0 +1,115 @@
+# ClearDrop 插件配置文件
+# 掉落物清理插件 - 支援 Minecraft 1.21-1.21.8
+
+# 清理設置
+clear:
+  # 清理間隔時間（秒）
+  interval: 300
+  # 警告時間（在清理前多少秒發出警告）
+  warning-times:
+    - 60
+    - 30
+    - 10
+    - 5
+  # 是否在啟動時自動開始計時器
+  auto-start: true
+  # 清理的世界列表
+  worlds:
+    - "world"
+  # 是否將清理的物品添加到商店
+  add-to-shop: true
+
+# 商店設置
+shop:
+  # 商店名稱
+  name: "&6&l掉落物商店"
+  # 商店大小（9的倍數，最大54）
+  size: 54
+  # 是否啟用商店功能
+  enabled: true
+  # 價格設置（根據稀有度）
+  prices:
+    # 普通物品價格範圍
+    common:
+      min: 10
+      max: 50
+    # 稀有物品價格範圍
+    uncommon:
+      min: 51
+      max: 150
+    # 史詩物品價格範圍
+    rare:
+      min: 151
+      max: 400
+    # 傳說物品價格範圍
+    epic:
+      min: 401
+      max: 700
+    # 神話物品價格範圍
+    legendary:
+      min: 701
+      max: 1000
+
+# 消息設置
+messages:
+  # 消息前綴
+  prefix: "&8[&6ClearDrop&8] &r"
+  # 清理相關消息
+  clear:
+    warning: "&e警告！掉落物將在 &c{time} &e秒後被清理！"
+    cleared: "&a已清理 &e{count} &a個掉落物！"
+    force-cleared: "&a管理員強制清理了 &e{count} &a個掉落物！"
+    no-items: "&7當前沒有掉落物需要清理。"
+  # 計時器相關消息
+  timer:
+    started: "&a清理計時器已啟動！下次清理時間：&e{time}"
+    stopped: "&c清理計時器已停止！"
+    reset: "&e清理計時器已重置！"
+  # 商店相關消息
+  shop:
+    opened: "&a已打開掉落物商店！"
+    cleared: "&a商店已清空！"
+    refreshed: "&a商店已刷新！"
+    purchase-success: "&a成功購買 &e{item} &a花費 &e{price} &a金幣！"
+    purchase-failed: "&c購買失敗！金錢不足。"
+    no-items: "&7商店中沒有物品。"
+  # 權限相關消息
+  no-permission: "&c您沒有權限執行此指令！"
+  player-only: "&c此指令只能由玩家執行！"
+  # 重載相關消息
+  reload-success: "&a插件配置已重載！"
+  reload-failed: "&c插件重載失敗！請檢查配置文件。"
+  # 世界管理消息
+  world:
+    added: "&a已將世界 &e{world} &a添加到清理列表！"
+    removed: "&a已將世界 &e{world} &a從清理列表移除！"
+    not-found: "&c世界 &e{world} &c不存在！"
+    already-exists: "&e世界 &e{world} &e已在清理列表中！"
+  # 錯誤消息
+  error:
+    invalid-number: "&c無效的數字格式！"
+    invalid-time: "&c時間不能少於30秒！"
+    command-error: "&c指令執行時發生錯誤！"
+
+# 性能設置
+performance:
+  # 每次清理檢查的最大實體數量
+  max-entities-per-check: 1000
+  # 清理檢查的間隔（tick，20 tick = 1秒）
+  check-interval: 20
+  # 是否啟用異步清理
+  async-clear: true
+  # 商店物品的最大堆疊數量
+  max-stack-size: 64
+
+# 調試設置
+debug:
+  # 是否啟用調試模式
+  enabled: false
+  # 是否記錄清理詳情
+  log-clear-details: false
+  # 是否記錄商店操作
+  log-shop-operations: false
+
+# 版本信息（請勿修改）
+config-version: 1.0

@@ -1,0 +1,30 @@
+# ClearDrop 商店數據文件
+# 此文件用於保存商店中的物品數據
+# 請勿手動編輯此文件，除非您知道自己在做什麼
+
+# 商店物品數據
+# 格式: 物品類型: 數量
+items: {}
+
+# 商店統計信息
+statistics:
+  # 總清理次數
+  total-clears: 0
+  # 總清理物品數量
+  total-items-cleared: 0
+  # 總購買次數
+  total-purchases: 0
+  # 總收入
+  total-income: 0.0
+  # 最後清理時間
+  last-clear-time: 0
+  # 最後購買時間
+  last-purchase-time: 0
+
+# 商店歷史記錄（最近10次操作）
+history:
+  clears: []
+  purchases: []
+
+# 數據版本（請勿修改）
+data-version: 1.0
