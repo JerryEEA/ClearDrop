@@ -23,13 +23,17 @@ public class ShopManager {
     
     private final ClearDropPlugin plugin;
     private final Map<String, ItemStack> shopItems; // 改為儲存完整ItemStack
+    private final Map<String, Long> itemCounts; // 使用Long來支持大數量
     private final Map<String, Integer> itemPrices; // 使用物品ID作為key
     private final List<Material> bannedItems; // 禁止物品列表
+    private final Map<Player, Integer> playerPages; // 玩家當前頁面
     
     public ShopManager(ClearDropPlugin plugin) {
         this.plugin = plugin;
         this.shopItems = new HashMap<>();
+        this.itemCounts = new HashMap<>();
         this.itemPrices = new HashMap<>();
+        this.playerPages = new HashMap<>();
         this.bannedItems = Arrays.asList(
             Material.WRITTEN_BOOK, // 禁止成書（可能包含不當內容）
             Material.COMMAND_BLOCK,
@@ -71,13 +75,15 @@ public class ShopManager {
             
             // 檢查是否已存在相同的物品
             if (shopItems.containsKey(itemId)) {
-                // 合併相同物品的數量
-                ItemStack existingItem = shopItems.get(itemId);
-                existingItem.setAmount(existingItem.getAmount() + amount);
+                // 累加數量到獨立的計數器中
+                long currentCount = itemCounts.get(itemId);
+                itemCounts.put(itemId, currentCount + amount);
             } else {
                 // 添加新物品到商店
                 ItemStack shopItem = itemStack.clone();
+                shopItem.setAmount(1); // ItemStack只存儲1個作為模板
                 shopItems.put(itemId, shopItem);
+                itemCounts.put(itemId, (long) amount); // 實際數量存儲在這裡
                 itemPrices.put(itemId, plugin.getConfigManager().getItemPrice(material));
             }
             
@@ -155,30 +161,39 @@ public class ShopManager {
 
     
     public void openShop(Player player) {
+        openShop(player, 0);
+    }
+    
+    public void openShop(Player player, int page) {
         if (!plugin.getConfigManager().isShopEnabled()) {
             player.sendMessage(plugin.getMessageUtil().colorize(
                 plugin.getConfigManager().getMessage("prefix") + "&c商店功能已停用！"));
             return;
         }
         
-        String shopName = plugin.getConfigManager().getShopName();
+        // 記錄玩家當前頁面
+        playerPages.put(player, page);
+        
+        String shopName = plugin.getConfigManager().getShopName() + " - 第" + (page + 1) + "頁";
         Inventory shopInventory = Bukkit.createInventory(null, 54, shopName);
+        
+        // 計算分頁
+        List<String> itemIds = new ArrayList<>(shopItems.keySet());
+        int itemsPerPage = 45; // 保留最後一行給控制按鈕
+        int startIndex = page * itemsPerPage;
+        int endIndex = Math.min(startIndex + itemsPerPage, itemIds.size());
         
         // 添加商店物品
         int slot = 0;
-        
-        // 添加商店物品
-        for (Map.Entry<String, ItemStack> entry : shopItems.entrySet()) {
-            if (slot >= 45) break; // 保留最後一行給控制按鈕
-            
-            String itemId = entry.getKey();
-            ItemStack originalItem = entry.getValue();
-            int amount = originalItem.getAmount();
+        for (int i = startIndex; i < endIndex; i++) {
+            String itemId = itemIds.get(i);
+            ItemStack originalItem = shopItems.get(itemId);
+            long amount = itemCounts.get(itemId);
             int price = itemPrices.getOrDefault(itemId, 10);
             
             // 創建顯示物品，保留原始NBT數據
             ItemStack displayItem = originalItem.clone();
-            displayItem.setAmount(Math.min(amount, 64));
+            displayItem.setAmount(Math.min((int)Math.min(amount, 64), 64));
             
             ItemMeta meta = displayItem.getItemMeta();
             if (meta != null) {
@@ -190,7 +205,7 @@ public class ShopManager {
                 // 添加商店信息到lore
                 List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
                 lore.add("");
-                lore.add("§7庫存: §a" + amount);
+                lore.add("§7庫存: §a" + formatLargeNumber(amount));
                 lore.add("§7價格: §6" + price + " 金幣");
                 lore.add("");
                 lore.add("§e左鍵購買 1 個");
@@ -203,10 +218,8 @@ public class ShopManager {
             shopInventory.setItem(slot++, displayItem);
         }
         
-
-        
         // 添加控制按鈕
-        addControlButtons(shopInventory);
+        addControlButtons(shopInventory, page, itemIds.size());
         
         player.openInventory(shopInventory);
         
@@ -215,7 +228,51 @@ public class ShopManager {
             plugin.getConfigManager().getMessage("prefix") + message));
     }
     
-    private void addControlButtons(Inventory inventory) {
+    private void addControlButtons(Inventory inventory, int currentPage, int totalItems) {
+        int itemsPerPage = 45;
+        int totalPages = (int) Math.ceil((double) totalItems / itemsPerPage);
+        
+        // 上一頁按鈕
+        if (currentPage > 0) {
+            ItemStack prevButton = new ItemStack(Material.ARROW);
+            ItemMeta prevMeta = prevButton.getItemMeta();
+            if (prevMeta != null) {
+                prevMeta.setDisplayName("§a上一頁");
+                prevMeta.setLore(Arrays.asList("§7點擊前往第" + currentPage + "頁"));
+                prevButton.setItemMeta(prevMeta);
+            }
+            inventory.setItem(45, prevButton);
+        }
+        
+        // 信息按鈕
+        ItemStack infoButton = new ItemStack(Material.BOOK);
+        ItemMeta infoMeta = infoButton.getItemMeta();
+        if (infoMeta != null) {
+            infoMeta.setDisplayName("§b商店信息");
+            List<String> infoLore = new ArrayList<>();
+            infoLore.add("§7當前頁面: §e" + (currentPage + 1) + "/" + Math.max(totalPages, 1));
+            infoLore.add("§7總物品種類: §e" + shopItems.size());
+            infoLore.add("§7總物品數量: §e" + formatLargeNumber(getTotalItemCount()));
+            infoLore.add("");
+            infoLore.add("§7這裡的物品來自於");
+            infoLore.add("§7被清理的掉落物");
+            infoMeta.setLore(infoLore);
+            infoButton.setItemMeta(infoMeta);
+        }
+        inventory.setItem(49, infoButton);
+        
+        // 下一頁按鈕
+        if (currentPage < totalPages - 1) {
+            ItemStack nextButton = new ItemStack(Material.ARROW);
+            ItemMeta nextMeta = nextButton.getItemMeta();
+            if (nextMeta != null) {
+                nextMeta.setDisplayName("§a下一頁");
+                nextMeta.setLore(Arrays.asList("§7點擊前往第" + (currentPage + 2) + "頁"));
+                nextButton.setItemMeta(nextMeta);
+            }
+            inventory.setItem(53, nextButton);
+        }
+        
         // 刷新按鈕
         ItemStack refreshButton = new ItemStack(Material.EMERALD);
         ItemMeta refreshMeta = refreshButton.getItemMeta();
@@ -224,7 +281,7 @@ public class ShopManager {
             refreshMeta.setLore(Arrays.asList("§7點擊刷新商店內容"));
             refreshButton.setItemMeta(refreshMeta);
         }
-        inventory.setItem(49, refreshButton);
+        inventory.setItem(46, refreshButton);
         
         // 清空商店按鈕（僅管理員可見）
         ItemStack clearButton = new ItemStack(Material.BARRIER);
@@ -237,23 +294,7 @@ public class ShopManager {
             ));
             clearButton.setItemMeta(clearMeta);
         }
-        inventory.setItem(53, clearButton);
-        
-        // 信息按鈕
-        ItemStack infoButton = new ItemStack(Material.BOOK);
-        ItemMeta infoMeta = infoButton.getItemMeta();
-        if (infoMeta != null) {
-            infoMeta.setDisplayName("§b商店信息");
-            List<String> infoLore = new ArrayList<>();
-            infoLore.add("§7總物品種類: §e" + shopItems.size());
-            infoLore.add("§7總物品數量: §e" + getTotalItemCount());
-            infoLore.add("");
-            infoLore.add("§7這裡的物品來自於");
-            infoLore.add("§7被清理的掉落物");
-            infoMeta.setLore(infoLore);
-            infoButton.setItemMeta(infoMeta);
-        }
-        inventory.setItem(45, infoButton);
+        inventory.setItem(52, clearButton);
     }
     
     // 新的購買方法，通過ItemStack購買
@@ -276,14 +317,14 @@ public class ShopManager {
         }
         
         ItemStack originalItem = shopItems.get(itemId);
-        int available = originalItem.getAmount();
+        long available = itemCounts.getOrDefault(itemId, 0L);
         int price = itemPrices.getOrDefault(itemId, 10);
         int totalPrice = price * amount;
         
         // 檢查庫存
         if (available < amount) {
             player.sendMessage(plugin.getMessageUtil().colorize(
-                plugin.getConfigManager().getMessage("prefix") + "§c庫存不足！可用: " + available));
+                plugin.getConfigManager().getMessage("prefix") + "§c庫存不足！可用: " + formatLargeNumber(available)));
             return false;
         }
         
@@ -302,14 +343,21 @@ public class ShopManager {
         }
         
         // 扣除庫存
-        originalItem.setAmount(available - amount);
-        if (originalItem.getAmount() <= 0) {
+        long newAmount = available - amount;
+        if (newAmount <= 0) {
             shopItems.remove(itemId);
             itemPrices.remove(itemId);
+            itemCounts.remove(itemId);
+        } else {
+            itemCounts.put(itemId, newAmount);
         }
         
         // 保存數據
         saveShopData();
+        
+        player.sendMessage(plugin.getMessageUtil().colorize(
+            plugin.getConfigManager().getMessage("prefix") + 
+            "§a成功購買 " + amount + " 個 " + getItemDisplayName(originalItem.getType()) + "！"));
         
         return true;
     }
@@ -511,7 +559,24 @@ public class ShopManager {
     }
     
     public int getTotalItemCount() {
-        return shopItems.values().stream().mapToInt(ItemStack::getAmount).sum();
+        long total = itemCounts.values().stream().mapToLong(Long::longValue).sum();
+        return (int) Math.min(total, Integer.MAX_VALUE);
+    }
+    
+    private String formatLargeNumber(long number) {
+        if (number >= 1_000_000_000) {
+            return String.format("%.1fB", number / 1_000_000_000.0);
+        } else if (number >= 1_000_000) {
+            return String.format("%.1fM", number / 1_000_000.0);
+        } else if (number >= 1_000) {
+            return String.format("%.1fK", number / 1_000.0);
+        } else {
+            return String.valueOf(number);
+        }
+    }
+    
+    public int getPlayerPage(Player player) {
+        return playerPages.getOrDefault(player, 0);
     }
     
     public void refreshShop() {
@@ -578,10 +643,13 @@ public class ShopManager {
     }
     
     public int getItemAmount(Material material) {
-        return shopItems.values().stream()
-            .filter(item -> item.getType() == material)
-            .mapToInt(ItemStack::getAmount)
-            .sum();
+        long totalAmount = 0;
+        for (Map.Entry<String, ItemStack> entry : shopItems.entrySet()) {
+            if (entry.getValue().getType() == material) {
+                totalAmount += itemCounts.getOrDefault(entry.getKey(), 0L);
+            }
+        }
+        return (int) Math.min(totalAmount, Integer.MAX_VALUE);
     }
     
     public int getItemPrice(Material material) {

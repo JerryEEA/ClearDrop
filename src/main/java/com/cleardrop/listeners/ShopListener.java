@@ -110,10 +110,33 @@ public class ShopListener implements Listener {
         
         String displayName = item.getItemMeta().getDisplayName();
         
+        // 上一頁按鈕
+        if (displayName.contains("上一頁") || displayName.contains("Previous")) {
+            int currentPage = plugin.getShopManager().getPlayerPage(player);
+            if (currentPage > 0) {
+                plugin.getShopManager().openShop(player, currentPage - 1);
+            }
+            return true;
+        }
+        
+        // 下一頁按鈕
+        if (displayName.contains("下一頁") || displayName.contains("Next")) {
+            int currentPage = plugin.getShopManager().getPlayerPage(player);
+            int totalItems = plugin.getShopManager().getShopItems().size();
+            int itemsPerPage = 45;
+            int totalPages = (int) Math.ceil((double) totalItems / itemsPerPage);
+            
+            if (currentPage < totalPages - 1) {
+                plugin.getShopManager().openShop(player, currentPage + 1);
+            }
+            return true;
+        }
+        
         // 刷新按鈕
         if (displayName.contains("刷新") || displayName.contains("Refresh")) {
             plugin.getShopManager().refreshShop();
-            plugin.getShopManager().openShop(player);
+            int currentPage = plugin.getShopManager().getPlayerPage(player);
+            plugin.getShopManager().openShop(player, currentPage);
             plugin.getMessageUtil().sendSuccessMessage(player, "商店已刷新！");
             return true;
         }
@@ -126,7 +149,7 @@ public class ShopListener implements Listener {
             }
             
             plugin.getShopManager().clearShop();
-            plugin.getShopManager().openShop(player);
+            plugin.getShopManager().openShop(player, 0);
             plugin.getMessageUtil().sendSuccessMessage(player, "商店已清空！");
             return true;
         }
